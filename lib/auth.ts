@@ -1,17 +1,16 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 import bcrypt from "bcrypt";
 import { DEFAULT_TOKEN_BALANCE } from "./constants";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
     maxAge: 60 * 60, // 1 hour in seconds
     updateAge: 60 * 5, // Update session every 5 minutes
   },
+  secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/auth/sign-in",
     signOut: "/auth/sign-out",
@@ -83,4 +82,5 @@ export const authOptions: NextAuthOptions = {
       });
     },
   },
+  debug: process.env.NODE_ENV === "development",
 };
