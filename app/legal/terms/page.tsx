@@ -100,7 +100,7 @@ export default function TermsPage() {
             <h2 className="font-heading text-2xl font-semibold mb-3">8. Məsuliyyətdən İmtina</h2>
             <p className="text-neutral-secondary">
               vidver.ai AI nəticələrinin dəqiqliyi və keyfiyyəti üçün zəmanət vermir.
-              Xidmətlər "olduğu kimi" təqdim edilir. Platformanın istifadəsi nəticəsində
+              Xidmətlər &quot;olduğu kimi&quot; təqdim edilir. Platformanın istifadəsi nəticəsində
               yarana biləcək zərərlərə görə məsuliyyət daşımırıq.
             </p>
           </section>

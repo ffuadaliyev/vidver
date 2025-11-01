@@ -26,8 +26,6 @@ async function main() {
     create: {
       userId: demoUser.id,
       balance: 100,
-      totalEarned: 100,
-      totalSpent: 0,
     },
   });
 
