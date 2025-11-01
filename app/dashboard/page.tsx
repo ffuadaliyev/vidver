@@ -83,6 +83,9 @@ export default function DashboardPage() {
             <Link href="/video">
               <Button variant="outline" size="sm">Video</Button>
             </Link>
+            <Link href="/profile">
+              <Button variant="outline" size="sm">Profil</Button>
+            </Link>
           </div>
         </div>
       </header>

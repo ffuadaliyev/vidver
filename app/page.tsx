@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -23,12 +27,20 @@ export default function HomePage() {
             <Link href="/dashboard" className="text-sm font-medium transition-colors hover:text-primary">
               Tarixçə
             </Link>
-            <Link href="/auth/sign-in">
-              <Button variant="outline" size="sm">Giriş</Button>
-            </Link>
-            <Link href="/auth/sign-up">
-              <Button size="sm">Qeydiyyat</Button>
-            </Link>
+            {session ? (
+              <Link href="/dashboard">
+                <Button size="sm">Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/auth/sign-in">
+                  <Button variant="outline" size="sm">Giriş</Button>
+                </Link>
+                <Link href="/auth/sign-up">
+                  <Button size="sm">Qeydiyyat</Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -44,16 +56,33 @@ export default function HomePage() {
             Kreativ presetlər, realistik nəticələr, asan paylaşım.
           </p>
           <div className="flex gap-4 justify-center">
-            <Link href="/auth/sign-up">
-              <Button size="lg" className="text-lg px-8 h-14">
-                Başla (pulsuz 100 token)
-              </Button>
-            </Link>
-            <Link href="/image">
-              <Button size="lg" variant="outline" className="text-lg px-8 h-14">
-                Demo-ya bax
-              </Button>
-            </Link>
+            {session ? (
+              <>
+                <Link href="/image">
+                  <Button size="lg" className="text-lg px-8 h-14">
+                    Şəkil Tuning
+                  </Button>
+                </Link>
+                <Link href="/video">
+                  <Button size="lg" variant="outline" className="text-lg px-8 h-14">
+                    Video Generator
+                  </Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/sign-up">
+                  <Button size="lg" className="text-lg px-8 h-14">
+                    Başla (pulsuz 100 token)
+                  </Button>
+                </Link>
+                <Link href="/image">
+                  <Button size="lg" variant="outline" className="text-lg px-8 h-14">
+                    Demo-ya bax
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -162,16 +191,27 @@ export default function HomePage() {
       <section className="container py-20 border-t border-border/40">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="font-heading text-4xl font-bold mb-6">
-            Hazırsınız? İndi başlayın!
+            {session ? "Gəlin yaradıcılığa başlayaq!" : "Hazırsınız? İndi başlayın!"}
           </h2>
           <p className="text-xl text-neutral-secondary mb-8">
-            Qeydiyyatdan keçin və pulsuz 100 token qazanın. Kredit kartı tələb olunmur.
+            {session
+              ? "Avtomobilinizin şəklini yükləyin və AI ilə professional tuning tətbiq edin."
+              : "Qeydiyyatdan keçin və pulsuz 100 token qazanın. Kredit kartı tələb olunmur."
+            }
           </p>
-          <Link href="/auth/sign-up">
-            <Button size="lg" className="text-lg px-12 h-14 glow-lime">
-              Pulsuz başla
-            </Button>
-          </Link>
+          {session ? (
+            <Link href="/image">
+              <Button size="lg" className="text-lg px-12 h-14 glow-lime">
+                İndi tuning et
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/auth/sign-up">
+              <Button size="lg" className="text-lg px-12 h-14 glow-lime">
+                Pulsuz başla
+              </Button>
+            </Link>
+          )}
         </div>
       </section>
 

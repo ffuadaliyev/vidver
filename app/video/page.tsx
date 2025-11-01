@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { LoadingCarProgress } from '@/components/LoadingCarProgress'
@@ -16,11 +17,19 @@ interface UploadedImage {
 
 export default function VideoPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [loading, setLoading] = useState(false)
   const [selectedEffect, setSelectedEffect] = useState('')
   const [message, setMessage] = useState('')
   const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null)
   const [resultVideo, setResultVideo] = useState<string | null>(null)
+
+  // Auth check - redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/sign-in?callbackUrl=/video')
+    }
+  }, [status, router])
 
   const handleUpload = (file: File, preview: string) => {
     setUploadedImage({ file, preview })
@@ -57,6 +66,20 @@ export default function VideoPage() {
     setMessage('')
   }
 
+  // Show loading while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingCarProgress message="Yüklənir..." />
+      </div>
+    )
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!session) {
+    return null
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-onyx via-onyx-light to-onyx">
       {/* Header */}
@@ -71,6 +94,9 @@ export default function VideoPage() {
             </Link>
             <Link href="/image">
               <Button variant="outline" size="sm">Şəkil</Button>
+            </Link>
+            <Link href="/profile">
+              <Button variant="outline" size="sm">Profil</Button>
             </Link>
           </div>
         </div>
