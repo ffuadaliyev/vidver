@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Production: PostgreSQL
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id               String            @id @default(cuid())
+  name             String?
+  email            String?           @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             String            @default("USER")
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  accounts         Account[]
+  sessions         Session[]
+  tokenWallet      TokenWallet?
+  assets           Asset[]
+  jobs             Job[]
+  tokenTransactions TokenTransaction[]
+
+  @@index([email])
+  @@index([createdAt])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// App models
+model TokenWallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(100)
+  totalEarned  Int   @default(100) // Total tokens earned
+  totalSpent   Int   @default(0)   // Total tokens spent
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model TokenTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  jobId       String?
+  amount      Int      // Negative for spending, positive for earning
+  type        String   // "INITIAL", "PURCHASE", "IMAGE_MODIFY", "VIDEO_GENERATE", "REFUND"
+  description String?
+  balanceBefore Int
+  balanceAfter  Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  logo      String?
+  isActive  Boolean  @default(true)
+  popularity Int    @default(0) // For sorting popular brands
+  createdAt DateTime @default(now())
+  models    Model[]
+  jobs      Job[]
+
+  @@index([slug])
+  @@index([popularity])
+}
+
+model Model {
+  id        String   @id @default(cuid())
+  brandId   String
+  name      String
+  slug      String
+  isActive  Boolean  @default(true)
+  popularity Int    @default(0) // For sorting popular models
+  createdAt DateTime @default(now())
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  jobs      Job[]
+
+  @@unique([brandId, slug])
+  @@index([brandId])
+  @@index([popularity])
+}
+
+model Preset {
+  id          String   @id @default(cuid())
+  type        String   // "IMAGE" or "VIDEO"
+  key         String   @unique
+  title       String
+  description String?
+  thumbnail   String?
+  isActive    Boolean  @default(true)
+  meta        String?  // JSON string for additional data
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  userId       String
+  type         String   // "IMAGE" or "VIDEO"
+  side         String?  // "FRONT", "REAR", "LEFT", "RIGHT"
+  url          String
+  filename     String
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  meta         String?  // JSON string for additional metadata
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputJobs    Job[]    @relation("JobInputAssets")
+  outputJobs   Job[]    @relation("JobOutputAssets")
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  userId         String
+  kind           String    // "IMAGE_MODIFY" or "VIDEO_GENERATE"
+  brandId        String?
+  modelId        String?
+  presets        String?   // JSON array of preset keys
+  status         String    @default("PENDING") // "PENDING", "PROCESSING", "DONE", "FAILED"
+  costTokens     Int
+  processingTimeMs Int?    // Processing time in milliseconds
+  errorMessage   String?
+  ipAddress      String?   // For analytics
+  userAgent      String?   // For analytics
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand          Brand?    @relation(fields: [brandId], references: [id])
+  model          Model?    @relation(fields: [modelId], references: [id])
+  inputAssets    Asset[]   @relation("JobInputAssets")
+  outputAssets   Asset[]   @relation("JobOutputAssets")
+
+  @@index([userId])
+  @@index([status])
+  @@index([kind])
+  @@index([createdAt])
+  @@index([brandId])
+  @@index([modelId])
+}

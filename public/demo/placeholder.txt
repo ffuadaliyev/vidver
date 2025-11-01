@@ -1,0 +1,7 @@
+Demo assets placeholder
+In production, add demo car images here:
+- /demo/results/front-tuned.jpg
+- /demo/results/rear-tuned.jpg
+- /demo/results/left-tuned.jpg
+- /demo/results/right-tuned.jpg
+- /demo/videos/*.mp4
