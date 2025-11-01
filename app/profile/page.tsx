@@ -78,24 +78,68 @@ export default function ProfilePage() {
 
       // Load profile
       const profileRes = await fetch('/api/profile')
-      if (!profileRes.ok) throw new Error('Failed to load profile')
+      if (!profileRes.ok) {
+        throw new Error('Profile yüklənmədi')
+      }
       const profileData = await profileRes.json()
-      setProfile(profileData)
 
-      // Load jobs
-      const jobsRes = await fetch('/api/jobs')
-      if (!jobsRes.ok) throw new Error('Failed to load jobs')
-      const jobsData = await jobsRes.json()
-      setJobs(jobsData.jobs || [])
+      // Transform profile data to match expected structure
+      const transformedProfile = {
+        user: {
+          id: profileData.user.id,
+          name: profileData.user.name,
+          email: profileData.user.email,
+          image: profileData.user.image,
+          createdAt: profileData.user.createdAt,
+          lastLoginAt: profileData.user.lastLoginAt || null,
+        },
+        tokenWallet: {
+          balance: profileData.tokenBalance || 0,
+          totalEarned: profileData.tokenBalance || 0, // Default to current balance
+          totalSpent: 0,
+        },
+        stats: {
+          totalJobs: 0,
+          completedJobs: 0,
+          processingJobs: 0,
+        },
+      }
 
-      // Load token transactions
-      const txRes = await fetch('/api/tokens/history')
-      if (!txRes.ok) throw new Error('Failed to load transactions')
-      const txData = await txRes.json()
-      setTransactions(txData.transactions || [])
+      setProfile(transformedProfile)
+
+      // Load jobs (optional, may not exist)
+      try {
+        const jobsRes = await fetch('/api/jobs')
+        if (jobsRes.ok) {
+          const jobsData = await jobsRes.json()
+          setJobs(jobsData.jobs || [])
+
+          // Update stats based on actual jobs
+          if (jobsData.jobs && jobsData.jobs.length > 0) {
+            transformedProfile.stats.totalJobs = jobsData.jobs.length
+            transformedProfile.stats.completedJobs = jobsData.jobs.filter((j: any) => j.status === 'completed').length
+            transformedProfile.stats.processingJobs = jobsData.jobs.filter((j: any) => j.status === 'processing').length
+            setProfile(transformedProfile)
+          }
+        }
+      } catch (e) {
+        console.log('Jobs API not available')
+      }
+
+      // Load token transactions (optional, may not exist)
+      try {
+        const txRes = await fetch('/api/tokens/history')
+        if (txRes.ok) {
+          const txData = await txRes.json()
+          setTransactions(txData.transactions || [])
+        }
+      } catch (e) {
+        console.log('Token history API not available')
+      }
 
       setLoading(false)
     } catch (err: any) {
+      console.error('Profile load error:', err)
       setError(err.message || 'Xəta baş verdi')
       setLoading(false)
     }
@@ -191,61 +235,63 @@ export default function ProfilePage() {
           )}
 
           {/* Profile Header Card */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                {/* Profile Image */}
-                <div className="flex-shrink-0">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-lime to-electric-cyan flex items-center justify-center text-4xl font-bold text-onyx">
-                    {profile.user.name?.charAt(0).toUpperCase() || profile.user.email?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                </div>
-
-                {/* Profile Info */}
-                <div className="flex-1">
-                  <h2 className="font-heading text-2xl font-bold mb-1">
-                    {profile.user.name || 'İstifadəçi'}
-                  </h2>
-                  <p className="text-neutral-secondary mb-4">
-                    {profile.user.email}
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-xs text-neutral-secondary mb-1">Token Balansı</p>
-                      <p className="font-heading text-2xl font-bold text-neon-lime">
-                        {profile.tokenWallet.balance}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-neutral-secondary mb-1">Ümumi İşlər</p>
-                      <p className="font-heading text-2xl font-bold">
-                        {profile.stats.totalJobs}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-neutral-secondary mb-1">Tamamlanmış</p>
-                      <p className="font-heading text-2xl font-bold text-green-500">
-                        {profile.stats.completedJobs}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-neutral-secondary mb-1">Üzv olma</p>
-                      <p className="text-sm font-medium">
-                        {new Date(profile.user.createdAt).toLocaleDateString('az-AZ')}
-                      </p>
+          {profile && (
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                  {/* Profile Image */}
+                  <div className="flex-shrink-0">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-lime to-electric-cyan flex items-center justify-center text-4xl font-bold text-onyx">
+                      {profile?.user?.name?.charAt(0).toUpperCase() || profile?.user?.email?.charAt(0).toUpperCase() || 'U'}
                     </div>
                   </div>
-                </div>
 
-                {/* Sign Out Button */}
-                <div className="flex-shrink-0">
-                  <Button variant="outline" onClick={handleSignOut}>
-                    Çıxış
-                  </Button>
+                  {/* Profile Info */}
+                  <div className="flex-1">
+                    <h2 className="font-heading text-2xl font-bold mb-1">
+                      {profile?.user?.name || 'İstifadəçi'}
+                    </h2>
+                    <p className="text-neutral-secondary mb-4">
+                      {profile?.user?.email || ''}
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-neutral-secondary mb-1">Token Balansı</p>
+                        <p className="font-heading text-2xl font-bold text-neon-lime">
+                          {profile?.tokenWallet?.balance || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-secondary mb-1">Ümumi İşlər</p>
+                        <p className="font-heading text-2xl font-bold">
+                          {profile?.stats?.totalJobs || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-secondary mb-1">Tamamlanmış</p>
+                        <p className="font-heading text-2xl font-bold text-green-500">
+                          {profile?.stats?.completedJobs || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-neutral-secondary mb-1">Üzv olma</p>
+                        <p className="text-sm font-medium">
+                          {profile?.user?.createdAt ? new Date(profile.user.createdAt).toLocaleDateString('az-AZ') : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sign Out Button */}
+                  <div className="flex-shrink-0">
+                    <Button variant="outline" onClick={handleSignOut}>
+                      Çıxış
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tabs */}
           <div className="mb-6 flex gap-2">
@@ -270,7 +316,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Overview Tab */}
-          {activeTab === 'overview' && (
+          {activeTab === 'overview' && profile && (
             <div className="space-y-6">
               {/* Personal Information */}
               <Card>
@@ -283,20 +329,20 @@ export default function ProfilePage() {
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">Ad</label>
-                        <p className="mt-1 font-medium">{profile.user.name || 'Təyin edilməyib'}</p>
+                        <p className="mt-1 font-medium">{profile?.user?.name || 'Təyin edilməyib'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">E-poçt</label>
-                        <p className="mt-1 font-medium">{profile.user.email}</p>
+                        <p className="mt-1 font-medium">{profile?.user?.email || '-'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">Qeydiyyat Tarixi</label>
-                        <p className="mt-1 font-medium">{formatDate(profile.user.createdAt)}</p>
+                        <p className="mt-1 font-medium">{profile?.user?.createdAt ? formatDate(profile.user.createdAt) : '-'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">Son Giriş</label>
                         <p className="mt-1 font-medium">
-                          {profile.user.lastLoginAt ? formatDate(profile.user.lastLoginAt) : 'Məlumat yoxdur'}
+                          {profile?.user?.lastLoginAt ? formatDate(profile.user.lastLoginAt) : 'Məlumat yoxdur'}
                         </p>
                       </div>
                     </div>
@@ -315,19 +361,19 @@ export default function ProfilePage() {
                     <div className="text-center p-4 rounded-lg bg-neon-lime/10 border border-neon-lime/20">
                       <p className="text-sm text-neutral-secondary mb-2">Cari Balans</p>
                       <p className="font-heading text-4xl font-bold text-neon-lime">
-                        {profile.tokenWallet.balance}
+                        {profile?.tokenWallet?.balance || 0}
                       </p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-green-500/10 border border-green-500/20">
                       <p className="text-sm text-neutral-secondary mb-2">Ümumi Qazanılan</p>
                       <p className="font-heading text-4xl font-bold text-green-500">
-                        {profile.tokenWallet.totalEarned}
+                        {profile?.tokenWallet?.totalEarned || 0}
                       </p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-red-500/10 border border-red-500/20">
                       <p className="text-sm text-neutral-secondary mb-2">Ümumi Xərclənən</p>
                       <p className="font-heading text-4xl font-bold text-red-500">
-                        {profile.tokenWallet.totalSpent}
+                        {profile?.tokenWallet?.totalSpent || 0}
                       </p>
                     </div>
                   </div>
