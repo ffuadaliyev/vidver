@@ -46,7 +46,7 @@ export default async function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="container py-24 md:py-32">
+      <section className="container py-16 md:py-24 lg:py-32 px-4 md:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="font-heading text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-br from-neutral-text via-neon-lime to-electric-cyan bg-clip-text text-transparent">
             Avtomobilinizi saniyələr içində yeni görkəmə gətirin
@@ -88,7 +88,7 @@ export default async function HomePage() {
       </section>
 
       {/* Features Section */}
-      <section className="container py-20 border-t border-border/40">
+      <section className="container py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 border-t border-border/40">
         <h2 className="font-heading text-4xl font-bold text-center mb-12">
           Niyə <span className="text-neon-lime">vidver.ai</span>?
         </h2>
@@ -132,7 +132,7 @@ export default async function HomePage() {
       </section>
 
       {/* How It Works */}
-      <section className="container py-20 border-t border-border/40">
+      <section className="container py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 border-t border-border/40">
         <h2 className="font-heading text-4xl font-bold text-center mb-12">
           Necə işləyir?
         </h2>
@@ -188,7 +188,7 @@ export default async function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="container py-20 border-t border-border/40">
+      <section className="container py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 border-t border-border/40">
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="font-heading text-4xl font-bold mb-6">
             {session ? "Gəlin yaradıcılığa başlayaq!" : "Hazırsınız? İndi başlayın!"}
@@ -216,8 +216,8 @@ export default async function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 py-12 mt-20">
-        <div className="container">
+      <footer className="border-t border-border/40 py-8 md:py-12 mt-12 md:mt-20 mb-16 lg:mb-0">
+        <div className="container px-4 md:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
               <h3 className="font-heading font-bold text-lg mb-4">vidver.ai</h3>

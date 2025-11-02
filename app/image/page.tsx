@@ -191,8 +191,8 @@ export default function ImagePage() {
         </div>
       </header>
 
-      <div className="container py-6 md:py-12 px-4">
-        <div className="max-w-4xl mx-auto">
+      <div className="container py-6 md:py-12 px-4 md:px-6 lg:px-8 pb-24 md:pb-12">
+        <div className="max-w-5xl mx-auto">
           <div className="mb-6 md:mb-8">
             <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">
               Şəkil Tuning
@@ -302,7 +302,7 @@ export default function ImagePage() {
                             label={sideLabels[side]}
                             onUpload={handleUpload(side)}
                             accept="image/jpeg,image/png,image/webp"
-                            maxSize={5}
+                            maxSize={5 * 1024 * 1024}
                           />
                         )}
                       </div>

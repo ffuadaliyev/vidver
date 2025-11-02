@@ -90,7 +90,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="container py-12">
+      <div className="container py-6 md:py-12 px-4 md:px-6 lg:px-8 pb-24 md:pb-12">
         {/* Welcome */}
         <div className="mb-8">
           <h1 className="font-heading text-4xl font-bold mb-2">

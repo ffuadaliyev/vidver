@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
@@ -30,7 +30,10 @@ interface ProfileData {
   user: {
     id: string
     name: string | null
+    firstName: string | null
+    lastName: string | null
     email: string | null
+    phone: string | null
     image: string | null
     createdAt: string
     lastLoginAt: string | null
@@ -53,9 +56,20 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [jobs, setJobs] = useState<Job[]>([])
   const [transactions, setTransactions] = useState<TokenTransaction[]>([])
-  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'transactions'>('overview')
+  const [activeTab, setActiveTab] = useState<'personal' | 'jobs' | 'transactions'>('personal')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [imageUploading, setImageUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+  })
 
   // Auth check
   useEffect(() => {
@@ -76,26 +90,27 @@ export default function ProfilePage() {
       setLoading(true)
       setError('')
 
-      // Load profile
       const profileRes = await fetch('/api/profile')
       if (!profileRes.ok) {
         throw new Error('Profile yüklənmədi')
       }
       const profileData = await profileRes.json()
 
-      // Transform profile data to match expected structure
       const transformedProfile = {
         user: {
           id: profileData.user.id,
           name: profileData.user.name,
+          firstName: profileData.user.firstName || null,
+          lastName: profileData.user.lastName || null,
           email: profileData.user.email,
+          phone: profileData.user.phone || null,
           image: profileData.user.image,
           createdAt: profileData.user.createdAt,
           lastLoginAt: profileData.user.lastLoginAt || null,
         },
         tokenWallet: {
           balance: profileData.tokenBalance || 0,
-          totalEarned: profileData.tokenBalance || 0, // Default to current balance
+          totalEarned: profileData.tokenBalance || 0,
           totalSpent: 0,
         },
         stats: {
@@ -106,15 +121,19 @@ export default function ProfilePage() {
       }
 
       setProfile(transformedProfile)
+      setFormData({
+        firstName: transformedProfile.user.firstName || '',
+        lastName: transformedProfile.user.lastName || '',
+        phone: transformedProfile.user.phone || '',
+      })
 
-      // Load jobs (optional, may not exist)
+      // Load jobs
       try {
         const jobsRes = await fetch('/api/jobs')
         if (jobsRes.ok) {
           const jobsData = await jobsRes.json()
           setJobs(jobsData.jobs || [])
 
-          // Update stats based on actual jobs
           if (jobsData.jobs && jobsData.jobs.length > 0) {
             transformedProfile.stats.totalJobs = jobsData.jobs.length
             transformedProfile.stats.completedJobs = jobsData.jobs.filter((j: any) => j.status === 'completed').length
@@ -126,7 +145,7 @@ export default function ProfilePage() {
         console.log('Jobs API not available')
       }
 
-      // Load token transactions (optional, may not exist)
+      // Load token transactions
       try {
         const txRes = await fetch('/api/tokens/history')
         if (txRes.ok) {
@@ -145,11 +164,93 @@ export default function ProfilePage() {
     }
   }
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Şəkil həcmi maksimum 2MB ola bilər')
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      alert('Yalnız şəkil faylları qəbul edilir')
+      return
+    }
+
+    try {
+      setImageUploading(true)
+
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64String = reader.result as string
+
+        const res = await fetch('/api/profile/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64String }),
+        })
+
+        if (!res.ok) throw new Error('Şəkil yüklənmədi')
+
+        const data = await res.json()
+        if (profile) {
+          setProfile({
+            ...profile,
+            user: { ...profile.user, image: data.user.image },
+          })
+        }
+
+        setImageUploading(false)
+      }
+
+      reader.readAsDataURL(file)
+    } catch (err) {
+      console.error('Image upload error:', err)
+      alert('Şəkil yüklənərkən xəta baş verdi')
+      setImageUploading(false)
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true)
+
+      const res = await fetch('/api/profile/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+
+      if (!res.ok) throw new Error('Profil yenilənmədi')
+
+      const data = await res.json()
+      if (profile) {
+        setProfile({
+          ...profile,
+          user: {
+            ...profile.user,
+            firstName: data.user.firstName,
+            lastName: data.user.lastName,
+            phone: data.user.phone,
+            name: data.user.name,
+          },
+        })
+      }
+
+      setIsEditing(false)
+      setSaving(false)
+    } catch (err) {
+      console.error('Profile update error:', err)
+      alert('Profil yenilənərkən xəta baş verdi')
+      setSaving(false)
+    }
+  }
+
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })
   }
 
-  // Show loading while checking authentication
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -158,7 +259,6 @@ export default function ProfilePage() {
     )
   }
 
-  // Don't render if not authenticated
   if (!session || !profile) {
     return null
   }
@@ -199,27 +299,27 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gradient-to-br from-onyx via-onyx-light to-onyx">
       {/* Header */}
       <header className="border-b border-border/40 bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between px-4">
+        <div className="container flex h-16 items-center justify-between px-4 md:px-6 lg:px-8">
           <Link href="/" className="font-heading text-xl md:text-2xl font-bold bg-gradient-to-r from-neon-lime to-electric-cyan bg-clip-text text-transparent">
             vidver.ai
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link href="/dashboard">
               <Button variant="outline" size="sm">Dashboard</Button>
             </Link>
             <Link href="/image">
-              <Button variant="outline" size="sm">Şəkil</Button>
+              <Button variant="outline" size="sm" className="hidden md:inline-flex">Şəkil</Button>
             </Link>
             <Link href="/video">
-              <Button variant="outline" size="sm">Video</Button>
+              <Button variant="outline" size="sm" className="hidden md:inline-flex">Video</Button>
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="container py-6 md:py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-6 md:mb-8">
+      <div className="container py-6 md:py-12 px-4 md:px-6 lg:px-8 pb-24 md:pb-12">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="mb-4 md:mb-6">
             <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">
               Profil
             </h1>
@@ -229,77 +329,96 @@ export default function ProfilePage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/40 text-red-500">
+            <div className="p-4 rounded-lg bg-red-500/20 border border-red-500/40 text-red-500">
               {error}
             </div>
           )}
 
           {/* Profile Header Card */}
-          {profile && (
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-                  {/* Profile Image */}
-                  <div className="flex-shrink-0">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-lime to-electric-cyan flex items-center justify-center text-4xl font-bold text-onyx">
-                      {profile?.user?.name?.charAt(0).toUpperCase() || profile?.user?.email?.charAt(0).toUpperCase() || 'U'}
-                    </div>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                {/* Profile Image */}
+                <div className="flex-shrink-0 relative group">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-neon-lime to-electric-cyan flex items-center justify-center text-4xl font-bold text-onyx overflow-hidden cursor-pointer"
+                       onClick={() => fileInputRef.current?.click()}>
+                    {profile?.user?.image ? (
+                      <img src={profile.user.image} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{profile?.user?.name?.charAt(0).toUpperCase() || profile?.user?.email?.charAt(0).toUpperCase() || 'U'}</span>
+                    )}
                   </div>
-
-                  {/* Profile Info */}
-                  <div className="flex-1">
-                    <h2 className="font-heading text-2xl font-bold mb-1">
-                      {profile?.user?.name || 'İstifadəçi'}
-                    </h2>
-                    <p className="text-neutral-secondary mb-4">
-                      {profile?.user?.email || ''}
-                    </p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-neutral-secondary mb-1">Token Balansı</p>
-                        <p className="font-heading text-2xl font-bold text-neon-lime">
-                          {profile?.tokenWallet?.balance || 0}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-secondary mb-1">Ümumi İşlər</p>
-                        <p className="font-heading text-2xl font-bold">
-                          {profile?.stats?.totalJobs || 0}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-secondary mb-1">Tamamlanmış</p>
-                        <p className="font-heading text-2xl font-bold text-green-500">
-                          {profile?.stats?.completedJobs || 0}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-neutral-secondary mb-1">Üzv olma</p>
-                        <p className="text-sm font-medium">
-                          {profile?.user?.createdAt ? new Date(profile.user.createdAt).toLocaleDateString('az-AZ') : '-'}
-                        </p>
-                      </div>
-                    </div>
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                       onClick={() => fileInputRef.current?.click()}>
+                    <span className="text-white text-sm">Dəyiş</span>
                   </div>
+                  {imageUploading && (
+                    <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center">
+                      <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full"></div>
+                    </div>
+                  )}
+                </div>
 
-                  {/* Sign Out Button */}
-                  <div className="flex-shrink-0">
-                    <Button variant="outline" onClick={handleSignOut}>
-                      Çıxış
-                    </Button>
+                {/* Profile Info */}
+                <div className="flex-1">
+                  <h2 className="font-heading text-2xl font-bold mb-1">
+                    {profile?.user?.name || 'İstifadəçi'}
+                  </h2>
+                  <p className="text-neutral-secondary mb-4">
+                    {profile?.user?.email || ''}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-xs text-neutral-secondary mb-1">Token Balansı</p>
+                      <p className="font-heading text-2xl font-bold text-neon-lime">
+                        {profile?.tokenWallet?.balance || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-secondary mb-1">Ümumi İşlər</p>
+                      <p className="font-heading text-2xl font-bold">
+                        {profile?.stats?.totalJobs || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-secondary mb-1">Tamamlanmış</p>
+                      <p className="font-heading text-2xl font-bold text-green-500">
+                        {profile?.stats?.completedJobs || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-secondary mb-1">Üzv olma</p>
+                      <p className="text-sm font-medium">
+                        {profile?.user?.createdAt ? new Date(profile.user.createdAt).toLocaleDateString('az-AZ') : '-'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+
+                {/* Sign Out Button */}
+                <div className="flex-shrink-0 w-full md:w-auto">
+                  <Button variant="outline" onClick={handleSignOut} className="w-full md:w-auto">
+                    Çıxış
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Tabs */}
-          <div className="mb-6 flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
-              variant={activeTab === 'overview' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('overview')}
+              variant={activeTab === 'personal' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('personal')}
             >
-              Ümumi
+              Şəxsi Məlumatlar
             </Button>
             <Button
               variant={activeTab === 'jobs' ? 'default' : 'outline'}
@@ -315,25 +434,103 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Overview Tab */}
-          {activeTab === 'overview' && profile && (
-            <div className="space-y-6">
-              {/* Personal Information */}
-              <Card>
-                <CardHeader>
+          {/* Personal Information Tab */}
+          {activeTab === 'personal' && (
+            <Card>
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
+                <div>
                   <CardTitle>Şəxsi Məlumatlar</CardTitle>
-                  <CardDescription>Hesab məlumatlarınız</CardDescription>
-                </CardHeader>
-                <CardContent>
+                  <CardDescription>Hesab məlumatlarınızı yeniləyin</CardDescription>
+                </div>
+                {!isEditing && (
+                  <Button variant="outline" onClick={() => setIsEditing(true)} size="sm">
+                    Redaktə et
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Ad</label>
+                        <input
+                          type="text"
+                          value={formData.firstName}
+                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                          className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:border-primary"
+                          placeholder="Adınız"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Soyad</label>
+                        <input
+                          type="text"
+                          value={formData.lastName}
+                          onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                          className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:border-primary"
+                          placeholder="Soyadınız"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Mobil nömrə</label>
+                        <input
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          className="w-full px-4 py-2 rounded-lg bg-background border border-border focus:outline-none focus:border-primary"
+                          placeholder="+994501234567"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block text-neutral-secondary">E-poçt (dəyişdirilə bilməz)</label>
+                        <input
+                          type="email"
+                          value={profile?.user?.email || ''}
+                          disabled
+                          className="w-full px-4 py-2 rounded-lg bg-background/50 border border-border text-neutral-secondary cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                      <Button onClick={handleSaveProfile} disabled={saving} className="w-full sm:w-auto">
+                        {saving ? 'Yadda saxlanılır...' : 'Yadda saxla'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setIsEditing(false)
+                          setFormData({
+                            firstName: profile?.user?.firstName || '',
+                            lastName: profile?.user?.lastName || '',
+                            phone: profile?.user?.phone || '',
+                          })
+                        }}
+                        disabled={saving}
+                        className="w-full sm:w-auto"
+                      >
+                        Ləğv et
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                   <div className="space-y-4">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">Ad</label>
-                        <p className="mt-1 font-medium">{profile?.user?.name || 'Təyin edilməyib'}</p>
+                        <p className="mt-1 font-medium">{profile?.user?.firstName || 'Təyin edilməyib'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-neutral-secondary">Soyad</label>
+                        <p className="mt-1 font-medium">{profile?.user?.lastName || 'Təyin edilməyib'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">E-poçt</label>
                         <p className="mt-1 font-medium">{profile?.user?.email || '-'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-neutral-secondary">Mobil nömrə</label>
+                        <p className="mt-1 font-medium">{profile?.user?.phone || 'Təyin edilməyib'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-neutral-secondary">Qeydiyyat Tarixi</label>
@@ -347,74 +544,9 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Token Statistics */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Token Statistikası</CardTitle>
-                  <CardDescription>Token istifadə məlumatlarınız</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-3 gap-6">
-                    <div className="text-center p-4 rounded-lg bg-neon-lime/10 border border-neon-lime/20">
-                      <p className="text-sm text-neutral-secondary mb-2">Cari Balans</p>
-                      <p className="font-heading text-4xl font-bold text-neon-lime">
-                        {profile?.tokenWallet?.balance || 0}
-                      </p>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <p className="text-sm text-neutral-secondary mb-2">Ümumi Qazanılan</p>
-                      <p className="font-heading text-4xl font-bold text-green-500">
-                        {profile?.tokenWallet?.totalEarned || 0}
-                      </p>
-                    </div>
-                    <div className="text-center p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                      <p className="text-sm text-neutral-secondary mb-2">Ümumi Xərclənən</p>
-                      <p className="font-heading text-4xl font-bold text-red-500">
-                        {profile?.tokenWallet?.totalSpent || 0}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Son Fəaliyyətlər</CardTitle>
-                  <CardDescription>Son işləriniz</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {jobs.length === 0 ? (
-                    <p className="text-center text-neutral-secondary py-8">
-                      Hələ heç bir iş yoxdur
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {jobs.slice(0, 5).map((job) => (
-                        <div key={job.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2 h-2 rounded-full ${getJobStatusBadge(job.status)}`} />
-                            <div>
-                              <p className="font-medium">{job.kind === 'IMAGE' ? 'Şəkil Tuning' : 'Video Generator'}</p>
-                              <p className="text-sm text-neutral-secondary">{formatDate(job.createdAt)}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm px-3 py-1 rounded-full ${getJobStatusBadge(job.status)}`}>
-                              {job.status}
-                            </p>
-                            <p className="text-sm text-neutral-secondary mt-1">-{job.cost} token</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Jobs History Tab */}
@@ -432,19 +564,19 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-3">
                     {jobs.map((job) => (
-                      <div key={job.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50 hover:bg-background/70 transition">
+                      <div key={job.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg bg-background/50 hover:bg-background/70 transition gap-3">
                         <div className="flex items-center gap-4">
-                          <div className={`w-3 h-3 rounded-full ${getJobStatusBadge(job.status)}`} />
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getJobStatusBadge(job.status)}`} />
                           <div>
                             <p className="font-medium">{job.kind === 'IMAGE' ? 'Şəkil Tuning' : 'Video Generator'}</p>
                             <p className="text-sm text-neutral-secondary">{formatDate(job.createdAt)}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`text-sm px-3 py-1 rounded-full inline-block ${getJobStatusBadge(job.status)}`}>
+                        <div className="flex items-center gap-3 ml-7 sm:ml-0">
+                          <p className={`text-sm px-3 py-1 rounded-full ${getJobStatusBadge(job.status)}`}>
                             {job.status}
                           </p>
-                          <p className="text-sm text-neutral-secondary mt-1">-{job.cost} token</p>
+                          <p className="text-sm text-neutral-secondary">-{job.cost} token</p>
                         </div>
                       </div>
                     ))}
@@ -469,8 +601,8 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-3">
                     {transactions.map((tx) => (
-                      <div key={tx.id} className="flex items-center justify-between p-4 rounded-lg bg-background/50">
-                        <div>
+                      <div key={tx.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg bg-background/50 gap-3">
+                        <div className="flex-1">
                           <p className="font-medium">
                             {tx.type === 'PURCHASE' && 'Token Alışı'}
                             {tx.type === 'REWARD' && 'Mükafat'}
@@ -479,7 +611,7 @@ export default function ProfilePage() {
                           </p>
                           <p className="text-sm text-neutral-secondary">{formatDate(tx.createdAt)}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-4">
                           <p className={`font-heading text-xl font-bold ${getTransactionColor(tx.type)}`}>
                             {getTransactionIcon(tx.type)}{Math.abs(tx.amount)}
                           </p>
