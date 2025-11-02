@@ -26,6 +26,20 @@ interface TokenTransaction {
   description?: string
 }
 
+interface Asset {
+  id: string
+  type: string
+  url: string
+  side?: string
+  createdAt: string
+  job: {
+    id: string
+    kind: string
+    status: string
+    createdAt: string
+  }
+}
+
 interface ProfileData {
   user: {
     id: string
@@ -56,7 +70,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [jobs, setJobs] = useState<Job[]>([])
   const [transactions, setTransactions] = useState<TokenTransaction[]>([])
-  const [activeTab, setActiveTab] = useState<'personal' | 'jobs' | 'transactions'>('personal')
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [activeTab, setActiveTab] = useState<'personal' | 'jobs' | 'transactions' | 'gallery'>('personal')
+  const [galleryTab, setGalleryTab] = useState<'uploaded' | 'generated'>('uploaded')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isEditing, setIsEditing] = useState(false)
@@ -154,6 +170,17 @@ export default function ProfilePage() {
         }
       } catch (e) {
         console.log('Token history API not available')
+      }
+
+      // Load assets (gallery images)
+      try {
+        const assetsRes = await fetch('/api/assets')
+        if (assetsRes.ok) {
+          const assetsData = await assetsRes.json()
+          setAssets(assetsData.assets || [])
+        }
+      } catch (e) {
+        console.log('Assets API not available')
       }
 
       setLoading(false)
@@ -421,6 +448,12 @@ export default function ProfilePage() {
               Şəxsi Məlumatlar
             </Button>
             <Button
+              variant={activeTab === 'gallery' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('gallery')}
+            >
+              Qalereya ({assets.length})
+            </Button>
+            <Button
               variant={activeTab === 'jobs' ? 'default' : 'outline'}
               onClick={() => setActiveTab('jobs')}
             >
@@ -623,6 +656,88 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Gallery Tab */}
+          {activeTab === 'gallery' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Qalereya</CardTitle>
+                <CardDescription>Yüklənmiş və hazırlanmış şəkillər</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Sub-tabs for gallery */}
+                <div className="flex gap-2 mb-6">
+                  <Button
+                    variant={galleryTab === 'uploaded' ? 'default' : 'outline'}
+                    onClick={() => setGalleryTab('uploaded')}
+                    size="sm"
+                  >
+                    Yüklənən ({assets.filter(a => a.type === 'original').length})
+                  </Button>
+                  <Button
+                    variant={galleryTab === 'generated' ? 'default' : 'outline'}
+                    onClick={() => setGalleryTab('generated')}
+                    size="sm"
+                  >
+                    Hazırlanmış ({assets.filter(a => a.type === 'result').length})
+                  </Button>
+                </div>
+
+                {/* Gallery Grid */}
+                <div>
+                  {galleryTab === 'uploaded' ? (
+                    assets.filter(a => a.type === 'original').length === 0 ? (
+                      <p className="text-center text-neutral-secondary py-8">
+                        Hələ heç bir şəkil yükləməmisiniz
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {assets.filter(a => a.type === 'original').map((asset) => (
+                          <div key={asset.id} className="group relative aspect-square rounded-lg overflow-hidden bg-background/50 hover:ring-2 hover:ring-primary transition-all cursor-pointer">
+                            <img
+                              src={asset.url}
+                              alt={asset.side || 'Asset'}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
+                              <p className="text-white text-sm font-medium mb-1">{asset.side || asset.job.kind}</p>
+                              <p className="text-white/70 text-xs">{new Date(asset.createdAt).toLocaleDateString('az-AZ')}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    assets.filter(a => a.type === 'result').length === 0 ? (
+                      <p className="text-center text-neutral-secondary py-8">
+                        Hələ heç bir AI nəticəsi yoxdur
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {assets.filter(a => a.type === 'result').map((asset) => (
+                          <div key={asset.id} className="group relative aspect-square rounded-lg overflow-hidden bg-background/50 hover:ring-2 hover:ring-neon-lime transition-all cursor-pointer">
+                            <img
+                              src={asset.url}
+                              alt={asset.side || 'Generated'}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end p-3">
+                              <p className="text-white text-sm font-medium mb-1">✨ AI Generated</p>
+                              <p className="text-white/70 text-xs">{new Date(asset.createdAt).toLocaleDateString('az-AZ')}</p>
+                            </div>
+                            {/* AI Badge */}
+                            <div className="absolute top-2 right-2 bg-neon-lime/90 text-onyx px-2 py-1 rounded-full text-xs font-bold">
+                              AI
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

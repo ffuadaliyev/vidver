@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { HeroCarousel } from "@/components/HeroCarousel";
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions);
@@ -47,37 +48,48 @@ export default async function HomePage() {
 
       {/* Hero Section */}
       <section className="container py-16 md:py-24 lg:py-32 px-4 md:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="font-heading text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-br from-neutral-text via-neon-lime to-electric-cyan bg-clip-text text-transparent">
-            Avtomobilinizi saniyələr içində yeni görkəmə gətirin
-          </h1>
-          <p className="text-xl text-neutral-secondary mb-8 max-w-2xl mx-auto">
-            Şəkildən modifikasiya və effektli videolar – AI ilə, vidver.ai-də.
-            Kreativ presetlər, realistik nəticələr, asan paylaşım.
-          </p>
-          <div className="flex gap-4 justify-center">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h1 className="font-heading text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-br from-neutral-text via-neon-lime to-electric-cyan bg-clip-text text-transparent">
+              Avtomobilinizi saniyələr içində yeni görkəmə gətirin
+            </h1>
+            <p className="text-xl text-neutral-secondary mb-8 max-w-2xl mx-auto">
+              Şəkildən modifikasiya və effektli videolar – AI ilə, vidver.ai-də.
+              Kreativ presetlər, realistik nəticələr, asan paylaşım.
+            </p>
+          </div>
+
+          {/* Carousel */}
+          <HeroCarousel />
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             {session ? (
               <>
-                <Link href="/image">
-                  <Button size="lg" className="text-lg px-8 h-14">
+                <Link href="/image" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto text-lg px-10 h-16 font-bold animate-pulse-glow hover:scale-105 transition-transform">
+                    <span className="mr-2">🚗</span>
                     Şəkil Tuning
                   </Button>
                 </Link>
-                <Link href="/video">
-                  <Button size="lg" variant="outline" className="text-lg px-8 h-14">
+                <Link href="/video" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-10 h-16 font-bold border-2 hover:bg-electric-cyan/10 hover:scale-105 transition-all">
+                    <span className="mr-2">🎬</span>
                     Video Generator
                   </Button>
                 </Link>
               </>
             ) : (
               <>
-                <Link href="/auth/sign-up">
-                  <Button size="lg" className="text-lg px-8 h-14">
+                <Link href="/auth/sign-up" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto text-lg px-10 h-16 font-bold animate-pulse-glow hover:scale-105 transition-transform">
+                    <span className="mr-2">🎁</span>
                     Başla (pulsuz 100 token)
                   </Button>
                 </Link>
-                <Link href="/image">
-                  <Button size="lg" variant="outline" className="text-lg px-8 h-14">
+                <Link href="/image" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-10 h-16 font-bold border-2 hover:bg-neon-lime/10 hover:scale-105 transition-all">
+                    <span className="mr-2">👀</span>
                     Demo-ya bax
                   </Button>
                 </Link>

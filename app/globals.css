@@ -74,4 +74,30 @@
     -webkit-mask-composite: xor;
     mask-composite: exclude;
   }
+
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(166, 255, 71, 0.4), 0 0 40px rgba(166, 255, 71, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(166, 255, 71, 0.6), 0 0 60px rgba(166, 255, 71, 0.3);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
 }
