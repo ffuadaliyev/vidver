@@ -13,7 +13,20 @@ interface Job {
   kind: string
   status: string
   createdAt: string
-  cost: number
+  costTokens: number
+  inputAssets?: Array<{
+    id: string
+    url: string
+    side?: string
+    type: string
+  }>
+  outputAssets?: Array<{
+    id: string
+    url: string
+    side?: string
+    type: string
+    meta?: string
+  }>
 }
 
 interface TokenTransaction {
@@ -300,6 +313,21 @@ export default function ProfilePage() {
     })
   }
 
+  const formatDateOnly = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('az-AZ', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+  }
+
+  const formatTimeOnly = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('az-AZ', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   const getJobStatusBadge = (status: string) => {
     const colors = {
       completed: 'bg-green-500/20 text-green-500',
@@ -317,8 +345,8 @@ export default function ProfilePage() {
   }
 
   const getTransactionColor = (type: string) => {
-    if (type === 'PURCHASE' || type === 'REWARD') return 'text-green-500'
-    if (type === 'SPEND') return 'text-red-500'
+    if (type === 'PURCHASE' || type === 'INITIAL') return 'text-green-500'
+    if (type === 'IMAGE_MODIFY' || type === 'VIDEO_GENERATE') return 'text-red-500'
     return 'text-neutral-text'
   }
 
@@ -595,24 +623,69 @@ export default function ProfilePage() {
                     Hələ heç bir iş yoxdur
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {jobs.map((job) => (
-                      <div key={job.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg bg-background/50 hover:bg-background/70 transition gap-3">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${getJobStatusBadge(job.status)}`} />
-                          <div>
-                            <p className="font-medium">{job.kind === 'IMAGE' ? 'Şəkil Tuning' : 'Video Generator'}</p>
-                            <p className="text-sm text-neutral-secondary">{formatDate(job.createdAt)}</p>
+                  <div className="space-y-4">
+                    {jobs.map((job) => {
+                      const outputAsset = job.outputAssets?.[0]
+                      const metadata = outputAsset?.meta ? JSON.parse(outputAsset.meta) : null
+
+                      return (
+                        <div key={job.id} className="flex items-start gap-4 p-4 rounded-lg bg-background/50 hover:bg-background/70 transition">
+                          {/* Image Thumbnail */}
+                          {outputAsset?.url && (
+                            <div className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-background">
+                              <img
+                                src={outputAsset.url}
+                                alt="Result"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+
+                          {/* Job Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div>
+                                <p className="font-medium">
+                                  {job.kind === 'IMAGE_MODIFY' ? 'AI Şəkil Tuning' : 'Video Generator'}
+                                </p>
+                                <div className="flex items-center gap-3 text-sm text-neutral-secondary mt-1">
+                                  <span>{formatDateOnly(job.createdAt)}</span>
+                                  <span>•</span>
+                                  <span>{formatTimeOnly(job.createdAt)}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <p className={`text-xs px-2 py-1 rounded-full ${getJobStatusBadge(job.status)}`}>
+                                  {job.status === 'DONE' ? 'Tamamlandı' : job.status === 'PROCESSING' ? 'İşlənir' : job.status}
+                                </p>
+                                <p className="text-sm font-medium text-red-500">-{job.costTokens} token</p>
+                              </div>
+                            </div>
+
+                            {/* Modifications */}
+                            {metadata && (
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {metadata.style && (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-neon-lime/10 text-neon-lime border border-neon-lime/20">
+                                    Stil: {metadata.style === 'sport' ? 'İdman' : 'Klassik'}
+                                  </span>
+                                )}
+                                {metadata.color && (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-electric-cyan/10 text-electric-cyan border border-electric-cyan/20">
+                                    Rəng: {metadata.color}
+                                  </span>
+                                )}
+                                {metadata.tuning && (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                                    Tuning: {metadata.tuning}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 ml-7 sm:ml-0">
-                          <p className={`text-sm px-3 py-1 rounded-full ${getJobStatusBadge(job.status)}`}>
-                            {job.status}
-                          </p>
-                          <p className="text-sm text-neutral-secondary">-{job.cost} token</p>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -637,20 +710,27 @@ export default function ProfilePage() {
                       <div key={tx.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-lg bg-background/50 gap-3">
                         <div className="flex-1">
                           <p className="font-medium">
+                            {tx.type === 'INITIAL' && 'İlkin Token'}
                             {tx.type === 'PURCHASE' && 'Token Alışı'}
-                            {tx.type === 'REWARD' && 'Mükafat'}
-                            {tx.type === 'SPEND' && 'İstifadə'}
+                            {tx.type === 'IMAGE_MODIFY' && 'AI Şəkil Tuning'}
+                            {tx.type === 'VIDEO_GENERATE' && 'Video Generator'}
+                            {tx.type === 'REFUND' && 'Geri Qaytarma'}
                             {tx.description && ` - ${tx.description}`}
                           </p>
-                          <p className="text-sm text-neutral-secondary">{formatDate(tx.createdAt)}</p>
+                          <div className="flex items-center gap-3 text-sm text-neutral-secondary mt-1">
+                            <span>{formatDateOnly(tx.createdAt)}</span>
+                            <span>•</span>
+                            <span>{formatTimeOnly(tx.createdAt)}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <p className={`font-heading text-xl font-bold ${getTransactionColor(tx.type)}`}>
-                            {getTransactionIcon(tx.type)}{Math.abs(tx.amount)}
+                          <p className={`font-heading text-2xl font-bold ${getTransactionColor(tx.type)}`}>
+                            {tx.amount > 0 ? '+' : ''}{tx.amount}
                           </p>
-                          <p className="text-sm text-neutral-secondary">
-                            Balans: {tx.balanceAfter}
-                          </p>
+                          <div className="text-right">
+                            <p className="text-xs text-neutral-secondary">Balans</p>
+                            <p className="text-sm font-medium">{tx.balanceAfter}</p>
+                          </div>
                         </div>
                       </div>
                     ))}

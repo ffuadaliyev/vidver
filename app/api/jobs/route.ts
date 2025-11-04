@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
               url: true,
               side: true,
               type: true,
+              meta: true,
             },
           },
         },
