@@ -25,16 +25,6 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
-      include: {
-        job: {
-          select: {
-            id: true,
-            kind: true,
-            status: true,
-            createdAt: true,
-          },
-        },
-      },
       take: 100, // Limit to last 100 assets
     });
 
