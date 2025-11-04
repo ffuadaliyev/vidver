@@ -152,11 +152,20 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Image tuning error:', error);
+    console.error('=== IMAGE TUNING ERROR ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Full error object:', JSON.stringify(error, null, 2));
+
     return NextResponse.json(
       {
         error: 'Image tuning failed',
         message: error.message || 'Unknown error',
+        details: process.env.NODE_ENV === 'development' ? {
+          name: error.name,
+          stack: error.stack,
+        } : undefined,
       },
       { status: 500 }
     );
