@@ -104,25 +104,34 @@ aggressive sport styling, racing aerodynamics,
 high quality, detailed, realistic, 4k resolution
 ```
 
-## 5. KIE.AI API Parameters
+## 5. KIE.AI FLUX Kontext API Parameters
+
+**API Endpoint:** `https://api.kie.ai/api/v1/flux/kontext/generate`
 
 Kod içində istifadə olunan parametrlər:
 
 ```typescript
 {
-  image: File,                    // Input image
-  prompt: string,                 // Generated prompt
-  strength: 0.8,                  // Transformation strength (0-1)
-  guidance_scale: 7.5,           // Prompt adherence (1-20)
-  num_inference_steps: 50,       // Quality vs speed (20-150)
-  negative_prompt: string        // What to avoid
+  prompt: string,                 // Generated prompt for modifications
+  inputImage: string,             // Base64 data URL or public image URL
+  aspectRatio: "16:9",           // Output aspect ratio
+  outputFormat: "jpeg",          // Output format (jpeg or png)
+  safetyTolerance: 2             // Safety level (0-2 for editing mode)
 }
 ```
 
-### Negative Prompts:
+**Response Format:**
+```json
+{
+  "taskId": "task-123...",
+  "status": "processing"
+}
+```
 
-- **Sport:** "blurry, low quality, distorted, vintage, old-fashioned"
-- **Classic:** "blurry, low quality, distorted, modern, aggressive"
+**Task Status Check:**
+- Endpoint: `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=xxx`
+- Poll every 2 seconds until status is "completed"
+- Response contains `images` array with result URLs
 
 ## 6. Error Handling
 

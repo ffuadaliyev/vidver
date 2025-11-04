@@ -24,63 +24,113 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Image and prompt are required' }, { status: 400 });
     }
 
-    // KIE.AI API configuration
+    // KIE.AI API configuration - FLUX Kontext API for image editing
     const KIE_AI_API_KEY = process.env.KIE_AI_API_KEY;
-    const KIE_AI_API_URL = 'https://api.kie.ai/v1/image-to-image';
+    const KIE_AI_API_URL = 'https://api.kie.ai/api/v1/flux/kontext/generate';
 
     if (!KIE_AI_API_KEY) {
       console.error('KIE_AI_API_KEY is not configured');
-      // For now, return mock response for testing
       return NextResponse.json({
-        resultUrl: '/mock-result.jpg',
-        message: 'Mock response - KIE.AI API key not configured',
-      });
+        error: 'API key not configured',
+        message: 'KIE.AI API key is not configured',
+      }, { status: 500 });
     }
 
-    // Convert File to Buffer for KIE.AI
+    // Convert File to base64 data URL for KIE.AI
     const arrayBuffer = await imageFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const base64Image = buffer.toString('base64');
+    const mimeType = imageFile.type || 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    // Prepare KIE.AI API request
-    const kieFormData = new FormData();
+    console.log('Calling KIE.AI FLUX Kontext API');
+    console.log('Prompt:', prompt);
+    console.log('Image size:', imageFile.size, 'bytes');
 
-    // Create blob from buffer
-    const blob = new Blob([buffer], { type: imageFile.type });
-    kieFormData.append('image', blob, imageFile.name);
-    kieFormData.append('prompt', prompt);
-    kieFormData.append('strength', '0.8'); // How much to transform (0-1)
-    kieFormData.append('guidance_scale', '7.5'); // How closely to follow prompt
-    kieFormData.append('num_inference_steps', '50'); // Quality vs speed
+    // Prepare request body for FLUX Kontext API
+    const requestBody = {
+      prompt: prompt,
+      inputImage: dataUrl, // Base64 data URL
+      aspectRatio: '16:9',
+      outputFormat: 'jpeg',
+      safetyTolerance: 2, // 0-2 for editing mode
+    };
 
-    // Add style-specific parameters
-    if (style === 'sport') {
-      kieFormData.append('negative_prompt', 'blurry, low quality, distorted, vintage, old-fashioned');
-    } else if (style === 'classic') {
-      kieFormData.append('negative_prompt', 'blurry, low quality, distorted, modern, aggressive');
-    }
-
-    console.log('Calling KIE.AI API with prompt:', prompt);
-
-    // Call KIE.AI API
+    // Call KIE.AI FLUX Kontext API
     const response = await fetch(KIE_AI_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${KIE_AI_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      body: kieFormData,
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('KIE.AI API error:', errorText);
+      console.error('KIE.AI API error:', response.status, errorText);
       throw new Error(`KIE.AI API error: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
+    console.log('KIE.AI API response:', result);
 
-    // KIE.AI typically returns image URL or base64
-    const resultUrl = result.image_url || result.output_url || result.url;
+    // FLUX Kontext API returns taskId for async processing
+    if (result.taskId) {
+      // Poll for result
+      const taskId = result.taskId;
+      let taskResult;
+      let attempts = 0;
+      const maxAttempts = 60; // 60 seconds max wait
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+
+        const statusResponse = await fetch(
+          `https://api.kie.ai/api/v1/flux/kontext/record-info?taskId=${taskId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${KIE_AI_API_KEY}`,
+            },
+          }
+        );
+
+        if (!statusResponse.ok) {
+          console.error('Error checking task status:', statusResponse.status);
+          attempts++;
+          continue;
+        }
+
+        taskResult = await statusResponse.json();
+        console.log('Task status:', taskResult.status, 'Attempt:', attempts + 1);
+
+        if (taskResult.status === 'completed' && taskResult.images && taskResult.images.length > 0) {
+          const resultUrl = taskResult.images[0];
+          console.log('Image generation completed:', resultUrl);
+
+          return NextResponse.json({
+            success: true,
+            resultUrl,
+            prompt,
+            metadata: {
+              style,
+              tuning,
+              color,
+              taskId,
+            },
+          });
+        } else if (taskResult.status === 'failed') {
+          throw new Error('Image generation failed');
+        }
+
+        attempts++;
+      }
+
+      throw new Error('Image generation timed out');
+    }
+
+    // Fallback if no taskId
+    const resultUrl = result.images?.[0] || result.image_url || result.output_url || result.url;
 
     if (!resultUrl) {
       console.error('No image URL in KIE.AI response:', result);
