@@ -14,145 +14,188 @@ interface UploadedImage {
   preview: string
 }
 
-interface ProcessedResult {
-  side: string
-  original: string
-  result: string
-}
-
-interface Brand {
-  id: string
-  name: string
-  slug: string
-  models: Model[]
-}
-
-interface Model {
-  id: string
-  name: string
-  slug: string
-}
+const COLOR_PALETTE = [
+  { name: 'Qırmızı', value: '#FF0000', hex: 'red' },
+  { name: 'Mavi', value: '#0000FF', hex: 'blue' },
+  { name: 'Qara', value: '#000000', hex: 'black' },
+  { name: 'Ağ', value: '#FFFFFF', hex: 'white' },
+  { name: 'Gümüşü', value: '#C0C0C0', hex: 'silver' },
+  { name: 'Boz', value: '#808080', hex: 'gray' },
+  { name: 'Sarı', value: '#FFD700', hex: 'yellow' },
+  { name: 'Yaşıl', value: '#00FF00', hex: 'green' },
+  { name: 'Narıncı', value: '#FF8C00', hex: 'orange' },
+  { name: 'Bənövşəyi', value: '#800080', hex: 'purple' },
+  { name: 'Göy', value: '#00CED1', hex: 'cyan' },
+  { name: 'Qəhvəyi', value: '#8B4513', hex: 'brown' },
+]
 
 export default function ImagePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [uploadedImages, setUploadedImages] = useState<{
-    front?: UploadedImage
-    rear?: UploadedImage
-    left?: UploadedImage
-    right?: UploadedImage
-  }>({})
-  const [results, setResults] = useState<ProcessedResult[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
-  const [selectedBrandId, setSelectedBrandId] = useState('')
-  const [selectedModelId, setSelectedModelId] = useState('')
-  const [availableModels, setAvailableModels] = useState<Model[]>([])
+  const [uploadedImage, setUploadedImage] = useState<UploadedImage | null>(null)
+  const [resultImage, setResultImage] = useState<string | null>(null)
 
-  // Auth check - redirect to sign-in if not authenticated
+  // Tuning selections
+  const [activeTab, setActiveTab] = useState<'tuning' | 'color'>('tuning')
+  const [isUmumi, setIsUmumi] = useState(false)
+  const [selectedParts, setSelectedParts] = useState<string[]>([])
+  const [selectedColor, setSelectedColor] = useState<typeof COLOR_PALETTE[0] | null>(null)
+  const [selectedStyle, setSelectedStyle] = useState<'sport' | 'classic' | ''>('')
+
+  // Auth check
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/sign-in?callbackUrl=/image')
     }
   }, [status, router])
 
-  // Load catalog data
-  useEffect(() => {
-    const loadCatalog = async () => {
-      try {
-        const response = await fetch('/api/catalog')
-        const data = await response.json()
-        if (data.brands) {
-          setBrands(data.brands)
-        }
-      } catch (error) {
-        console.error('Failed to load catalog:', error)
-      }
-    }
-    loadCatalog()
-  }, [])
+  const handleUpload = (file: File, preview: string) => {
+    setUploadedImage({ file, preview })
+    setMessage('')
+    setResultImage(null)
+  }
 
-  // Update available models when brand changes
-  useEffect(() => {
-    if (selectedBrandId) {
-      const brand = brands.find(b => b.id === selectedBrandId)
-      setAvailableModels(brand?.models || [])
-      setSelectedModelId('') // Reset model selection
+  const handlePartToggle = (part: string) => {
+    if (selectedParts.includes(part)) {
+      setSelectedParts(selectedParts.filter(p => p !== part))
     } else {
-      setAvailableModels([])
-      setSelectedModelId('')
+      setSelectedParts([...selectedParts, part])
     }
-  }, [selectedBrandId, brands])
+  }
 
-  const handleUpload = (side: 'front' | 'rear' | 'left' | 'right') => (file: File, preview: string) => {
-    setUploadedImages(prev => ({
-      ...prev,
-      [side]: { file, preview }
-    }))
+  const handleUmumiToggle = () => {
+    setIsUmumi(!isUmumi)
+    if (!isUmumi) {
+      setSelectedParts([]) // Clear individual parts when Ümumi is selected
+    }
+  }
+
+  const generatePrompt = () => {
+    let prompt = 'A professional automotive tuning photo of a car with '
+
+    const modifications: string[] = []
+
+    // Tuning parts
+    if (isUmumi) {
+      modifications.push('complete full body kit modification')
+    } else if (selectedParts.length > 0) {
+      const partMap: { [key: string]: string } = {
+        'bumper': 'modified bumper',
+        'lights': 'custom headlights and taillights',
+        'hood': 'carbon fiber hood',
+        'roof': 'roof spoiler',
+        'doors': 'custom side skirts and door panels'
+      }
+      selectedParts.forEach(part => {
+        if (partMap[part]) modifications.push(partMap[part])
+      })
+    }
+
+    // Color
+    if (selectedColor) {
+      modifications.push(`${selectedColor.hex} paint finish`)
+    }
+
+    // Style
+    if (selectedStyle === 'sport') {
+      modifications.push('aggressive sport styling, racing aerodynamics')
+    } else if (selectedStyle === 'classic') {
+      modifications.push('elegant classic styling, vintage design elements')
+    }
+
+    if (modifications.length > 0) {
+      prompt += modifications.join(', ')
+    } else {
+      prompt = 'A professional automotive photo of a car'
+    }
+
+    prompt += ', high quality, detailed, realistic, 4k resolution'
+
+    return prompt
   }
 
   const handleProcess = async () => {
-    const uploadedCount = Object.keys(uploadedImages).length
-    if (uploadedCount === 0) {
-      setMessage('Zəhmət olmasa ən azı 1 şəkil yükləyin')
+    if (!uploadedImage) {
+      setMessage('Zəhmət olmasa şəkil yükləyin')
+      return
+    }
+
+    if (activeTab === 'tuning' && !isUmumi && selectedParts.length === 0) {
+      setMessage('Zəhmət olmasa tuning seçimi edin')
+      return
+    }
+
+    if (activeTab === 'color' && !selectedColor) {
+      setMessage('Zəhmət olmasa rəng seçin')
+      return
+    }
+
+    if (!selectedStyle) {
+      setMessage('Zəhmət olmasa stil seçin')
       return
     }
 
     setLoading(true)
-    setMessage('AI modeli şəkilləri işləyir...')
+    setMessage('AI işləyir...')
 
-    // Simulate 5s processing
-    setTimeout(() => {
-      // Return same images as results (for testing)
-      const processedResults: ProcessedResult[] = []
+    try {
+      const prompt = generatePrompt()
 
-      if (uploadedImages.front) {
-        processedResults.push({
-          side: 'Ön',
-          original: uploadedImages.front.preview,
-          result: uploadedImages.front.preview
-        })
-      }
-      if (uploadedImages.rear) {
-        processedResults.push({
-          side: 'Arxa',
-          original: uploadedImages.rear.preview,
-          result: uploadedImages.rear.preview
-        })
-      }
-      if (uploadedImages.left) {
-        processedResults.push({
-          side: 'Sol',
-          original: uploadedImages.left.preview,
-          result: uploadedImages.left.preview
-        })
-      }
-      if (uploadedImages.right) {
-        processedResults.push({
-          side: 'Sağ',
-          original: uploadedImages.right.preview,
-          result: uploadedImages.right.preview
-        })
+      // Prepare form data for KIE.AI API
+      const formData = new FormData()
+      formData.append('image', uploadedImage.file)
+      formData.append('prompt', prompt)
+      formData.append('style', selectedStyle)
+
+      // Add tuning data
+      if (isUmumi) {
+        formData.append('tuning', 'complete')
+      } else {
+        formData.append('tuning', JSON.stringify(selectedParts))
       }
 
-      setResults(processedResults)
-      setMessage('Modifikasiya tamamlandı!')
+      // Add color data
+      if (selectedColor) {
+        formData.append('color', selectedColor.hex)
+      }
+
+      // Call our API endpoint (which will call KIE.AI)
+      const response = await fetch('/api/image-tuning', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Tuning uğursuz oldu')
+      }
+
+      const data = await response.json()
+
+      if (data.resultUrl) {
+        setResultImage(data.resultUrl)
+        setMessage('Tuning tamamlandı!')
+      } else {
+        throw new Error('Nəticə alına bilmədi')
+      }
+
       setLoading(false)
-    }, 5000)
+    } catch (error: any) {
+      console.error('Tuning error:', error)
+      setMessage('Xəta: ' + (error.message || 'Bir xəta baş verdi'))
+      setLoading(false)
+    }
   }
 
   const handleReset = () => {
-    setUploadedImages({})
-    setResults([])
+    setUploadedImage(null)
+    setResultImage(null)
+    setIsUmumi(false)
+    setSelectedParts([])
+    setSelectedColor(null)
+    setSelectedStyle('')
     setMessage('')
-  }
-
-  const sideLabels = {
-    front: 'Ön',
-    rear: 'Arxa',
-    left: 'Sol',
-    right: 'Sağ'
   }
 
   // Show loading while checking authentication
@@ -164,16 +207,24 @@ export default function ImagePage() {
     )
   }
 
-  // Don't render if not authenticated (will redirect)
+  // Don't render if not authenticated
   if (!session) {
     return null
   }
+
+  const parts = [
+    { id: 'bumper', label: 'Bufer' },
+    { id: 'lights', label: 'İşıqlar' },
+    { id: 'hood', label: 'Kapot' },
+    { id: 'roof', label: 'Dam' },
+    { id: 'doors', label: 'Qapılar' },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-onyx via-onyx-light to-onyx">
       {/* Header */}
       <header className="border-b border-border/40 bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between px-4">
+        <div className="container flex h-16 items-center justify-between px-4 md:px-6 lg:px-8">
           <Link href="/" className="font-heading text-xl md:text-2xl font-bold bg-gradient-to-r from-neon-lime to-electric-cyan bg-clip-text text-transparent">
             vidver.ai
           </Link>
@@ -195,17 +246,17 @@ export default function ImagePage() {
         <div className="max-w-5xl mx-auto">
           <div className="mb-6 md:mb-8">
             <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">
-              Şəkil Tuning
+              AI Şəkil Tuning
             </h1>
             <p className="text-sm md:text-base text-neutral-secondary">
-              4 tərəfdən şəkil yükləyib AI ilə tuning tətbiq edin
+              Avtomobilinizin şəklini yükləyib AI ilə professional tuning tətbiq edin
             </p>
           </div>
 
           {loading ? (
             <Card>
               <CardContent className="py-12">
-                <LoadingCarProgress message="AI modeli işləyir..." />
+                <LoadingCarProgress message="AI tuning tətbiq edir..." />
                 {message && (
                   <p className="text-center mt-6 text-sm text-neutral-secondary">
                     {message}
@@ -213,193 +264,250 @@ export default function ImagePage() {
                 )}
               </CardContent>
             </Card>
-          ) : results.length > 0 ? (
+          ) : resultImage ? (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Nəticələr</CardTitle>
-                  <CardDescription>
-                    Modifikasiya olunmuş şəkillər
-                  </CardDescription>
+                  <CardTitle>Nəticə</CardTitle>
+                  <CardDescription>AI tərəfindən yaradılmış tuning</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-6">
-                    {results.map((result, idx) => (
-                      <div key={idx} className="space-y-2">
-                        <h3 className="font-semibold text-lg">{result.side}</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs text-neutral-secondary mb-2">Orijinal</p>
-                            <img
-                              src={result.original}
-                              alt={`${result.side} - Orijinal`}
-                              className="w-full h-48 md:h-64 object-cover rounded-lg border border-border"
-                            />
-                          </div>
-                          <div>
-                            <p className="text-xs text-neutral-secondary mb-2">Nəticə</p>
-                            <img
-                              src={result.result}
-                              alt={`${result.side} - Nəticə`}
-                              className="w-full h-48 md:h-64 object-cover rounded-lg border border-primary"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-sm text-neutral-secondary mb-3">Orijinal</p>
+                      <img
+                        src={uploadedImage!.preview}
+                        alt="Original"
+                        className="w-full rounded-lg border border-border"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-secondary mb-3 flex items-center gap-2">
+                        <span className="bg-neon-lime/20 text-neon-lime px-2 py-1 rounded text-xs font-bold">AI</span>
+                        Nəticə
+                      </p>
+                      <img
+                        src={resultImage}
+                        alt="Result"
+                        className="w-full rounded-lg border border-neon-lime"
+                      />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <div className="flex gap-4 justify-end">
-                <Button variant="outline" onClick={handleReset}>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button variant="outline" onClick={handleReset} className="flex-1">
                   Yenidən başla
                 </Button>
-                <Button onClick={() => router.push('/dashboard')}>
+                <Button onClick={() => router.push('/dashboard')} className="flex-1">
                   Dashboard-a get
                 </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-6 md:space-y-8">
+            <div className="space-y-6">
               {/* Upload Section */}
               <Card>
                 <CardHeader>
                   <CardTitle>1. Şəkil yükləyin</CardTitle>
-                  <CardDescription>
-                    Avtomobilinizin 4 tərəfdən şəkillərini yükləyin
-                  </CardDescription>
+                  <CardDescription>Avtomobilinizin şəklini yükləyin</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(Object.keys(sideLabels) as Array<keyof typeof sideLabels>).map((side) => (
-                      <div key={side}>
-                        {uploadedImages[side] ? (
-                          <div className="relative">
-                            <img
-                              src={uploadedImages[side]!.preview}
-                              alt={sideLabels[side]}
-                              className="w-full h-48 object-cover rounded-lg border border-primary"
-                            />
-                            <div className="absolute top-2 left-2 bg-background/90 px-3 py-1 rounded-full text-sm font-medium">
-                              {sideLabels[side]}
-                            </div>
-                            <button
-                              onClick={() => {
-                                setUploadedImages(prev => {
-                                  const updated = { ...prev }
-                                  delete updated[side]
-                                  return updated
-                                })
-                              }}
-                              className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ) : (
-                          <UploadBox
-                            label={sideLabels[side]}
-                            onUpload={handleUpload(side)}
-                            accept="image/jpeg,image/png,image/webp"
-                            maxSize={5 * 1024 * 1024}
-                          />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {message && !loading && (
-                    <p className="text-sm text-amber-500 mt-4">{message}</p>
+                  {uploadedImage ? (
+                    <div className="relative">
+                      <img
+                        src={uploadedImage.preview}
+                        alt="Uploaded"
+                        className="w-full max-w-md mx-auto rounded-lg border border-primary"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-4 right-4"
+                        onClick={() => setUploadedImage(null)}
+                      >
+                        Sil
+                      </Button>
+                    </div>
+                  ) : (
+                    <UploadBox
+                      label="Avtomobil şəkli"
+                      onUpload={handleUpload}
+                      accept="image/jpeg,image/png,image/webp"
+                      maxSize={5 * 1024 * 1024}
+                    />
                   )}
                 </CardContent>
               </Card>
 
-              {/* Brand/Model Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>2. Marka və Model (isteğe bağlı)</CardTitle>
-                  <CardDescription>
-                    Avtomobilinizin marka və modelini seçin
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Marka</label>
-                      <select
-                        className="w-full h-11 rounded-lg border border-input bg-background px-4 text-sm"
-                        value={selectedBrandId}
-                        onChange={(e) => setSelectedBrandId(e.target.value)}
+              {/* Tuning/Color Tabs */}
+              {uploadedImage && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>2. Dəyişiklik seçin</CardTitle>
+                    <CardDescription>Tuning və ya rəng dəyişikliyi seçin</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Tab Buttons */}
+                    <div className="flex gap-2 mb-6">
+                      <Button
+                        variant={activeTab === 'tuning' ? 'default' : 'outline'}
+                        onClick={() => setActiveTab('tuning')}
                       >
-                        <option value="">Marka seçin</option>
-                        {brands.map(brand => (
-                          <option key={brand.id} value={brand.id}>
-                            {brand.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Model</label>
-                      <select
-                        className="w-full h-11 rounded-lg border border-input bg-background px-4 text-sm"
-                        value={selectedModelId}
-                        onChange={(e) => setSelectedModelId(e.target.value)}
-                        disabled={!selectedBrandId || availableModels.length === 0}
+                        Tuning
+                      </Button>
+                      <Button
+                        variant={activeTab === 'color' ? 'default' : 'outline'}
+                        onClick={() => setActiveTab('color')}
                       >
-                        <option value="">
-                          {selectedBrandId ? 'Model seçin' : 'Əvvəlcə marka seçin'}
-                        </option>
-                        {availableModels.map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name}
-                          </option>
-                        ))}
-                      </select>
+                        Rəng
+                      </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Tuning Options */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>3. Tuning seçimləri (isteğe bağlı)</CardTitle>
-                  <CardDescription>
-                    İstədiyiniz tuning elementlərini seçin
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {['Body Kit', 'Disk/Rim', 'Spoyler', 'Kapot', 'Rəng/Wrap', 'Xenon'].map((item) => (
-                      <label key={item} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary transition-colors cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4" />
-                        <span className="text-sm font-medium">{item}</span>
-                      </label>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                    {/* Tuning Tab */}
+                    {activeTab === 'tuning' && (
+                      <div className="space-y-4">
+                        {/* Ümumi Checkbox */}
+                        <div className="flex items-center gap-3 p-4 rounded-lg bg-neon-lime/10 border-2 border-neon-lime/30">
+                          <input
+                            type="checkbox"
+                            id="umumi"
+                            checked={isUmumi}
+                            onChange={handleUmumiToggle}
+                            className="w-5 h-5 cursor-pointer"
+                          />
+                          <label htmlFor="umumi" className="text-lg font-semibold cursor-pointer">
+                            Ümumi (Tam body kit)
+                          </label>
+                        </div>
 
-              {/* Action */}
-              <Card>
-                <CardContent className="p-4 md:p-6">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-neutral-secondary">Token cost</p>
-                      <p className="font-heading text-2xl font-bold text-neon-lime">20 token</p>
+                        {/* Individual Parts */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {parts.map((part) => (
+                            <div
+                              key={part.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                                isUmumi
+                                  ? 'bg-background/30 border-border/30 opacity-50 cursor-not-allowed'
+                                  : selectedParts.includes(part.id)
+                                  ? 'bg-electric-cyan/10 border-electric-cyan'
+                                  : 'bg-background/50 border-border hover:border-primary cursor-pointer'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                id={part.id}
+                                checked={selectedParts.includes(part.id)}
+                                onChange={() => handlePartToggle(part.id)}
+                                disabled={isUmumi}
+                                className="w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                              />
+                              <label
+                                htmlFor={part.id}
+                                className={`font-medium ${isUmumi ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                {part.label}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Color Tab */}
+                    {activeTab === 'color' && (
+                      <div className="space-y-4">
+                        <p className="text-sm text-neutral-secondary">Avtomobil üçün rəng seçin</p>
+                        <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                          {COLOR_PALETTE.map((color) => (
+                            <button
+                              key={color.hex}
+                              onClick={() => setSelectedColor(color)}
+                              className={`relative aspect-square rounded-lg transition-all ${
+                                selectedColor?.hex === color.hex
+                                  ? 'ring-4 ring-neon-lime scale-110'
+                                  : 'hover:scale-105 ring-2 ring-border'
+                              }`}
+                              style={{ backgroundColor: color.value }}
+                              title={color.name}
+                            >
+                              {selectedColor?.hex === color.hex && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-2xl">✓</span>
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        {selectedColor && (
+                          <p className="text-center text-sm font-medium mt-4">
+                            Seçilmiş rəng: <span className="text-neon-lime">{selectedColor.name}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Style Selection */}
+              {uploadedImage && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>3. Stil seçin</CardTitle>
+                    <CardDescription>Tuning stili</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <button
+                        onClick={() => setSelectedStyle('sport')}
+                        className={`p-6 rounded-lg border-2 transition-all ${
+                          selectedStyle === 'sport'
+                            ? 'bg-neon-lime/20 border-neon-lime'
+                            : 'bg-background/50 border-border hover:border-primary'
+                        }`}
+                      >
+                        <div className="text-4xl mb-3">🏎️</div>
+                        <h3 className="text-xl font-bold mb-2">Sport</h3>
+                        <p className="text-sm text-neutral-secondary">Aggressive styling, racing aerodynamics</p>
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedStyle('classic')}
+                        className={`p-6 rounded-lg border-2 transition-all ${
+                          selectedStyle === 'classic'
+                            ? 'bg-neon-lime/20 border-neon-lime'
+                            : 'bg-background/50 border-border hover:border-primary'
+                        }`}
+                      >
+                        <div className="text-4xl mb-3">🚗</div>
+                        <h3 className="text-xl font-bold mb-2">Klasik</h3>
+                        <p className="text-sm text-neutral-secondary">Elegant styling, vintage design elements</p>
+                      </button>
                     </div>
-                    <Button
-                      size="lg"
-                      onClick={handleProcess}
-                      className="w-full md:w-auto px-8"
-                      disabled={Object.keys(uploadedImages).length === 0}
-                    >
-                      Modifikasiya et
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Process Button */}
+              {uploadedImage && (
+                <div className="flex justify-center">
+                  <Button
+                    size="lg"
+                    onClick={handleProcess}
+                    disabled={loading}
+                    className="w-full md:w-auto px-12 h-14 text-lg font-bold animate-pulse-glow"
+                  >
+                    <span className="mr-2">🚀</span>
+                    AI Tuning Başlat
+                  </Button>
+                </div>
+              )}
+
+              {message && !loading && (
+                <p className="text-center text-sm text-amber-500">{message}</p>
+              )}
             </div>
           )}
         </div>
