@@ -55,8 +55,13 @@ export async function GET() {
       user: {
         id: user.id,
         name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
+        phone: user.phone,
         image: user.image,
+        createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt,
       },
       tokenBalance: user.tokenWallet?.balance || 0,
       recentJobs: recentJobs.map(job => ({

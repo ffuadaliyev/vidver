@@ -36,10 +36,17 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
+    // Split name into firstName and lastName
+    const nameParts = name.trim().split(' ')
+    const firstName = nameParts[0]
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null
+
     // Create user
     const user = await prisma.user.create({
       data: {
         name,
+        firstName,
+        lastName,
         email,
         password: hashedPassword,
       },

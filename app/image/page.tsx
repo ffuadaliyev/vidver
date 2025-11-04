@@ -15,18 +15,50 @@ interface UploadedImage {
 }
 
 const COLOR_PALETTE = [
-  { name: 'Qırmızı', value: '#FF0000', hex: 'red' },
-  { name: 'Mavi', value: '#0000FF', hex: 'blue' },
+  // Reds
+  { name: 'Parlaq Qırmızı', value: '#FF0000', hex: 'bright red' },
+  { name: 'Tünd Qırmızı', value: '#8B0000', hex: 'dark red' },
+  { name: 'Kardinal Qırmızı', value: '#C41E3A', hex: 'cardinal red' },
+  { name: 'Bordo', value: '#800020', hex: 'burgundy' },
+
+  // Oranges
+  { name: 'Narıncı', value: '#FF8C00', hex: 'orange' },
+  { name: 'Tünd Narıncı', value: '#FF4500', hex: 'dark orange' },
+  { name: 'Coral', value: '#FF7F50', hex: 'coral' },
+
+  // Yellows
+  { name: 'Parlaq Sarı', value: '#FFD700', hex: 'bright yellow' },
+  { name: 'Limon Sarı', value: '#FFF700', hex: 'lemon yellow' },
+  { name: 'Qızıl', value: '#FFD700', hex: 'gold' },
+
+  // Greens
+  { name: 'Lime Yaşıl', value: '#32CD32', hex: 'lime green' },
+  { name: 'Meşə Yaşıl', value: '#228B22', hex: 'forest green' },
+  { name: 'Tünd Yaşıl', value: '#006400', hex: 'dark green' },
+  { name: 'Zümrüd', value: '#50C878', hex: 'emerald' },
+
+  // Blues
+  { name: 'Göy', value: '#00CED1', hex: 'cyan' },
+  { name: 'Parlaq Mavi', value: '#0000FF', hex: 'bright blue' },
+  { name: 'Tünd Mavi', value: '#00008B', hex: 'navy blue' },
+  { name: 'Kral Mavisi', value: '#4169E1', hex: 'royal blue' },
+  { name: 'Açıq Göy', value: '#87CEEB', hex: 'sky blue' },
+
+  // Purples & Pinks
+  { name: 'Bənövşəyi', value: '#800080', hex: 'purple' },
+  { name: 'Indigo', value: '#4B0082', hex: 'indigo' },
+  { name: 'Magenta', value: '#FF00FF', hex: 'magenta' },
+  { name: 'Çəhrayı', value: '#FFC0CB', hex: 'pink' },
+
+  // Neutrals & Metallics
   { name: 'Qara', value: '#000000', hex: 'black' },
   { name: 'Ağ', value: '#FFFFFF', hex: 'white' },
   { name: 'Gümüşü', value: '#C0C0C0', hex: 'silver' },
   { name: 'Boz', value: '#808080', hex: 'gray' },
-  { name: 'Sarı', value: '#FFD700', hex: 'yellow' },
-  { name: 'Yaşıl', value: '#00FF00', hex: 'green' },
-  { name: 'Narıncı', value: '#FF8C00', hex: 'orange' },
-  { name: 'Bənövşəyi', value: '#800080', hex: 'purple' },
-  { name: 'Göy', value: '#00CED1', hex: 'cyan' },
+  { name: 'Tünd Boz', value: '#404040', hex: 'dark gray' },
   { name: 'Qəhvəyi', value: '#8B4513', hex: 'brown' },
+  { name: 'Bej', value: '#F5F5DC', hex: 'beige' },
+  { name: 'Şampan', value: '#F7E7CE', hex: 'champagne' },
 ]
 
 export default function ImagePage() {
@@ -73,45 +105,57 @@ export default function ImagePage() {
   }
 
   const generatePrompt = () => {
-    let prompt = 'A professional automotive tuning photo of a car with '
+    let prompt = 'Keep the car in its exact original location, environment, background, lighting, and setting. Preserve all camera angle and perspective. '
 
     const modifications: string[] = []
+    const hasColorChange = !!selectedColor
+    const hasTuningParts = isUmumi || selectedParts.length > 0
 
-    // Tuning parts
-    if (isUmumi) {
-      modifications.push('complete full body kit modification')
-    } else if (selectedParts.length > 0) {
-      const partMap: { [key: string]: string } = {
-        'bumper': 'modified bumper',
-        'lights': 'custom headlights and taillights',
-        'hood': 'carbon fiber hood',
-        'roof': 'roof spoiler',
-        'doors': 'custom side skirts and door panels'
+    // If ONLY color is being changed (no tuning parts)
+    if (hasColorChange && !hasTuningParts) {
+      prompt += `Change ONLY the car's paint color to ${selectedColor.hex}. `
+      prompt += 'Keep absolutely everything else identical: body shape, wheels, lights, bumpers, spoilers, interior, reflections, surroundings. '
+      prompt += 'The car should look exactly the same except for the paint color. '
+    }
+    // If tuning parts are selected
+    else {
+      prompt += 'Modify ONLY the following parts, keep everything else exactly the same: '
+
+      // Tuning parts
+      if (isUmumi) {
+        modifications.push('complete full body kit')
+      } else if (selectedParts.length > 0) {
+        const partMap: { [key: string]: string } = {
+          'bumper': 'front and rear bumpers',
+          'lights': 'headlights and taillights',
+          'hood': 'hood',
+          'roof': 'roof and roof spoiler',
+          'doors': 'side skirts and door panels'
+        }
+        selectedParts.forEach(part => {
+          if (partMap[part]) modifications.push(partMap[part])
+        })
       }
-      selectedParts.forEach(part => {
-        if (partMap[part]) modifications.push(partMap[part])
-      })
+
+      // Color (when combined with tuning)
+      if (selectedColor) {
+        modifications.push(`car paint color to ${selectedColor.hex}`)
+      }
+
+      prompt += modifications.join(', ') + '. '
+
+      // Style applies ONLY to selected parts
+      if (selectedStyle === 'sport') {
+        prompt += 'Apply aggressive sport styling and racing aerodynamics ONLY to the modified parts. '
+      } else if (selectedStyle === 'classic') {
+        prompt += 'Apply elegant classic styling and vintage design elements ONLY to the modified parts. '
+      }
+
+      prompt += 'Keep all unselected parts in their original state. '
     }
 
-    // Color
-    if (selectedColor) {
-      modifications.push(`${selectedColor.hex} paint finish`)
-    }
-
-    // Style
-    if (selectedStyle === 'sport') {
-      modifications.push('aggressive sport styling, racing aerodynamics')
-    } else if (selectedStyle === 'classic') {
-      modifications.push('elegant classic styling, vintage design elements')
-    }
-
-    if (modifications.length > 0) {
-      prompt += modifications.join(', ')
-    } else {
-      prompt = 'A professional automotive photo of a car'
-    }
-
-    prompt += ', high quality, detailed, realistic, 4k resolution'
+    prompt += 'Maintain photorealistic quality, high detail, 4k resolution. '
+    prompt += 'The result must look natural and professionally tuned, not artificially generated. '
 
     return prompt
   }
@@ -418,8 +462,8 @@ export default function ImagePage() {
                     {/* Color Tab */}
                     {activeTab === 'color' && (
                       <div className="space-y-4">
-                        <p className="text-sm text-neutral-secondary">Avtomobil üçün rəng seçin</p>
-                        <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                        <p className="text-sm text-neutral-secondary">Avtomobil üçün rəng seçin - Rəng tonlarının geniş spektri</p>
+                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
                           {COLOR_PALETTE.map((color) => (
                             <button
                               key={color.hex}
@@ -434,7 +478,7 @@ export default function ImagePage() {
                             >
                               {selectedColor?.hex === color.hex && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-2xl">✓</span>
+                                  <span className="text-2xl drop-shadow-lg">✓</span>
                                 </div>
                               )}
                             </button>

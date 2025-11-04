@@ -28,7 +28,9 @@
       "Bash(openssl rand:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_N3mf1xKzlSbg@ep-delicate-flower-a44jlg65-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma db push:*)",
       "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_N3mf1xKzlSbg@ep-delicate-flower-a44jlg65-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require\" npm run db:seed:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(gh auth:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
