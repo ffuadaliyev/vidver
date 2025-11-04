@@ -1,5 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+// import AppleProvider from "next-auth/providers/apple";
 import { prisma } from "./prisma";
 import bcrypt from "bcrypt";
 import { DEFAULT_TOKEN_BALANCE } from "./constants";
@@ -17,6 +19,16 @@ export const authOptions: NextAuthOptions = {
     error: "/auth/error",
   },
   providers: [
+    // Google OAuth Provider
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+    // Apple OAuth Provider (uncomment when ready to use)
+    // AppleProvider({
+    //   clientId: process.env.APPLE_CLIENT_ID || "",
+    //   clientSecret: process.env.APPLE_CLIENT_SECRET || "",
+    // }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
