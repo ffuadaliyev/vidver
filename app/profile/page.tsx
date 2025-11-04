@@ -85,7 +85,6 @@ export default function ProfilePage() {
   const [transactions, setTransactions] = useState<TokenTransaction[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
   const [activeTab, setActiveTab] = useState<'personal' | 'jobs' | 'transactions' | 'gallery'>('personal')
-  const [galleryTab, setGalleryTab] = useState<'uploaded' | 'generated'>('uploaded')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isEditing, setIsEditing] = useState(false)
@@ -479,7 +478,7 @@ export default function ProfilePage() {
               variant={activeTab === 'gallery' ? 'default' : 'outline'}
               onClick={() => setActiveTab('gallery')}
             >
-              Qalereya ({assets.length})
+              Qalereya ({jobs.filter(j => j.outputAssets && j.outputAssets.length > 0).reduce((sum, j) => sum + (j.outputAssets?.length || 0), 0)})
             </Button>
             <Button
               variant={activeTab === 'jobs' ? 'default' : 'outline'}
@@ -745,79 +744,80 @@ export default function ProfilePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Qalereya</CardTitle>
-                <CardDescription>Yüklənmiş və hazırlanmış şəkillər</CardDescription>
+                <CardDescription>AI ilə hazırlanmış şəkillər</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Sub-tabs for gallery */}
-                <div className="flex gap-2 mb-6">
-                  <Button
-                    variant={galleryTab === 'uploaded' ? 'default' : 'outline'}
-                    onClick={() => setGalleryTab('uploaded')}
-                    size="sm"
-                  >
-                    Yüklənən ({assets.filter(a => a.type === 'original').length})
-                  </Button>
-                  <Button
-                    variant={galleryTab === 'generated' ? 'default' : 'outline'}
-                    onClick={() => setGalleryTab('generated')}
-                    size="sm"
-                  >
-                    Hazırlanmış ({assets.filter(a => a.type === 'result').length})
-                  </Button>
-                </div>
+                {(() => {
+                  const generatedImages = jobs
+                    .filter(job => job.outputAssets && job.outputAssets.length > 0)
+                    .flatMap(job => job.outputAssets!.map(asset => ({
+                      ...asset,
+                      jobId: job.id,
+                      jobCreatedAt: job.createdAt,
+                      metadata: asset.meta ? JSON.parse(asset.meta) : null
+                    })))
 
-                {/* Gallery Grid */}
-                <div>
-                  {galleryTab === 'uploaded' ? (
-                    assets.filter(a => a.type === 'original').length === 0 ? (
-                      <p className="text-center text-neutral-secondary py-8">
-                        Hələ heç bir şəkil yükləməmisiniz
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {assets.filter(a => a.type === 'original').map((asset) => (
-                          <div key={asset.id} className="group relative aspect-square rounded-lg overflow-hidden bg-background/50 hover:ring-2 hover:ring-primary transition-all cursor-pointer">
-                            <img
-                              src={asset.url}
-                              alt={asset.side || 'Asset'}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
-                              <p className="text-white text-sm font-medium mb-1">{asset.side || asset.job.kind}</p>
-                              <p className="text-white/70 text-xs">{new Date(asset.createdAt).toLocaleDateString('az-AZ')}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
+                  return generatedImages.length === 0 ? (
+                    <p className="text-center text-neutral-secondary py-8">
+                      Hələ heç bir AI nəticəsi yoxdur
+                    </p>
                   ) : (
-                    assets.filter(a => a.type === 'result').length === 0 ? (
-                      <p className="text-center text-neutral-secondary py-8">
-                        Hələ heç bir AI nəticəsi yoxdur
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {assets.filter(a => a.type === 'result').map((asset) => (
-                          <div key={asset.id} className="group relative aspect-square rounded-lg overflow-hidden bg-background/50 hover:ring-2 hover:ring-neon-lime transition-all cursor-pointer">
-                            <img
-                              src={asset.url}
-                              alt={asset.side || 'Generated'}
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end p-3">
-                              <p className="text-white text-sm font-medium mb-1">✨ AI Generated</p>
-                              <p className="text-white/70 text-xs">{new Date(asset.createdAt).toLocaleDateString('az-AZ')}</p>
-                            </div>
-                            {/* AI Badge */}
-                            <div className="absolute top-2 right-2 bg-neon-lime/90 text-onyx px-2 py-1 rounded-full text-xs font-bold">
-                              AI
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {generatedImages.map((image) => (
+                        <div key={image.id} className="group relative aspect-square rounded-lg overflow-hidden bg-background/50 hover:ring-2 hover:ring-neon-lime transition-all">
+                          <img
+                            src={image.url}
+                            alt="AI Generated"
+                            className="w-full h-full object-cover"
+                          />
+
+                          {/* AI Badge */}
+                          <div className="absolute top-2 right-2 bg-neon-lime/90 text-onyx px-2 py-1 rounded-full text-xs font-bold">
+                            AI
+                          </div>
+
+                          {/* Hover Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-end p-3">
+                            <p className="text-white text-sm font-medium mb-1">✨ AI Generated</p>
+                            <p className="text-white/70 text-xs mb-3">{new Date(image.jobCreatedAt).toLocaleDateString('az-AZ')}</p>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2 w-full">
+                              <a
+                                href={image.url}
+                                download={`vidver-ai-${image.id}.jpg`}
+                                className="flex-1 px-3 py-2 bg-neon-lime text-onyx rounded-lg text-xs font-bold hover:bg-neon-lime/80 transition text-center"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Endir
+                              </a>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  if (confirm('Şəkli silmək istədiyinizə əminsiniz?')) {
+                                    try {
+                                      const res = await fetch(`/api/assets/${image.id}`, { method: 'DELETE' })
+                                      if (res.ok) {
+                                        loadProfileData()
+                                      } else {
+                                        alert('Şəkil silinə bilmədi')
+                                      }
+                                    } catch (err) {
+                                      alert('Xəta baş verdi')
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-2 bg-red-500/80 text-white rounded-lg text-xs font-bold hover:bg-red-500 transition"
+                              >
+                                Sil
+                              </button>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-                </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </CardContent>
             </Card>
           )}

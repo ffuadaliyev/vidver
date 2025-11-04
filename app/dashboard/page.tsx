@@ -106,11 +106,11 @@ export default function DashboardPage() {
           <Card className="gradient-border hover:shadow-2xl transition-all cursor-pointer" onClick={() => router.push('/image')}>
             <CardHeader>
               <CardTitle className="text-electric-cyan">🚗 Şəkil Tuning</CardTitle>
-              <CardDescription>4 tərəfdən şəkil yükləyib AI ilə tuning tətbiq edin</CardDescription>
+              <CardDescription>AI ilə avtomobil şəklini tuning edin</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-neutral-secondary mb-4">
-                Cost: <span className="text-neon-lime font-bold">20 token</span>
+                Cost: <span className="text-neon-lime font-bold">5 token</span>
               </p>
               <Button className="w-full">Başla</Button>
             </CardContent>
@@ -142,10 +142,10 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <span className="text-2xl">{job.kind === 'IMAGE' ? '🚗' : '🎬'}</span>
+                          <span className="text-2xl">{job.kind === 'IMAGE_MODIFY' ? '🚗' : '🎬'}</span>
                           <div>
                             <h3 className="font-semibold">
-                              {job.kind === 'IMAGE' ? 'Şəkil Tuning' : 'Video Generator'}
+                              {job.kind === 'IMAGE_MODIFY' ? 'AI Şəkil Tuning' : 'Video Generator'}
                             </h3>
                             {job.brand && job.model && (
                               <p className="text-sm text-neutral-secondary">

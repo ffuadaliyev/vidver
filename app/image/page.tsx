@@ -256,7 +256,7 @@ export default function ImagePage() {
           {loading ? (
             <Card>
               <CardContent className="py-12">
-                <LoadingCarProgress message="AI tuning tətbiq edir..." />
+                <LoadingCarProgress message="AI tuning tətbiq edir..." duration={30000} />
                 {message && (
                   <p className="text-center mt-6 text-sm text-neutral-secondary">
                     {message}
